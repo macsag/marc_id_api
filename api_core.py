@@ -27,7 +27,7 @@ def create_authority_index(data):
         for rcd in tqdm(rdr):
             try:
                 record_id = rcd.get_fields('001')[0].value()
-                logging.debug('Indeksuję: {}'.format(record_id))
+                #logging.debug('Indeksuję: {}'.format(record_id))
             except IndexError:
                 continue
             for fld in AUTHORITY_INDEX_FIELDS:
@@ -88,7 +88,7 @@ def get_marc_data_from_data_bn(records_ids):
         query = 'http://data.bn.org.pl/api/authorities.marc?id={}&limit=100'.format(ids_for_query)
 
         result = bytearray(requests.get(query).content)
-        logging.debug("Pobieram: {}".format(query))
+        #logging.debug("Pobieram: {}".format(query))
         return result
 
 # api core function
@@ -131,7 +131,7 @@ class Updater(object):
     def update_bibliographic_index(self, bib_index, updater_status):
         # set update status
         updater_status.update_in_progress = True
-        logging.debug("Status: {}".format(updater_status.update_in_progress))
+        logging.info("Status: {}".format(updater_status.update_in_progress))
 
         # create dates for queries
         date_from = updater_status.last_bib_update - timedelta(days=2)
@@ -144,14 +144,14 @@ class Updater(object):
             date_from_in_iso_with_z, date_to_in_iso_with_z)
 
         deleted_records_ids = self.get_records_ids_from_data_bn_for_bibliographic_index_update(deleted_query)
-        logging.debug("Rekordów usuniętych: {}".format(len(deleted_records_ids)))
+        logging.info("Rekordów usuniętych: {}".format(len(deleted_records_ids)))
 
         # get updated bib records ids from data.bn.org.pl
         updated_query = 'http://data.bn.org.pl/api/bibs.json?updatedDate={}%2C{}&limit=100'.format(
             date_from_in_iso_with_z, date_to_in_iso_with_z)
 
         updated_records_ids = self.get_records_ids_from_data_bn_for_bibliographic_index_update(updated_query)
-        logging.debug("Rekordów zmodyfikowanych: {}".format(len(updated_records_ids)))
+        logging.info("Rekordów zmodyfikowanych: {}".format(len(updated_records_ids)))
 
         # delete authority records from authority index by record id (deletes entries by record id and heading)
         self.remove_deleted_records_from_bibliographic_index(deleted_records_ids, bib_index)
@@ -162,7 +162,7 @@ class Updater(object):
         # set update status
         updater_status.update_in_progress = False
         updater_status.last_bib_update = date_to
-        logging.debug("Status: {}".format(updater_status.update_in_progress))
+        logging.info("Status: {}".format(updater_status.update_in_progress))
 
     def update_authority_index(self, authority_index, updater_status):
         # set update status
@@ -279,7 +279,7 @@ class Updater(object):
 
         while query:
             r = requests.get(query)
-            logging.debug("Pobieram: {}".format(query))
+            #logging.debug("Pobieram: {}".format(query))
             json_chunk = r.json()
 
             for rcd in json_chunk['authorities']:
@@ -288,7 +288,7 @@ class Updater(object):
                 except TypeError:
                     record_id = 'a' + calculate_check_digit(str(rcd['id']))
                 records_ids.append(record_id)
-                logging.debug("Dołączam rekord nr: {}".format(record_id))
+                #logging.debug("Dołączam rekord nr: {}".format(record_id))
 
             query = json_chunk['nextPage'] if json_chunk['nextPage'] else None
 
@@ -300,7 +300,7 @@ class Updater(object):
 
         while query:
             r = requests.get(query)
-            logging.debug("Pobieram: {}".format(query))
+            #logging.debug("Pobieram: {}".format(query))
             json_chunk = r.json()
 
             for rcd in json_chunk['bibs']:
@@ -309,7 +309,7 @@ class Updater(object):
                 except TypeError:
                     record_id = 'a' + calculate_check_digit(str(rcd['id']))
                 records_ids.append(record_id)
-                logging.debug("Dołączam rekord nr: {}".format(record_id))
+                #logging.debug("Dołączam rekord nr: {}".format(record_id))
 
             query = json_chunk['nextPage'] if json_chunk['nextPage'] else None
 
@@ -424,7 +424,7 @@ class BibliographicRecordsChunksCache(object):
     def add_to_cache(self, bib_chunk):
         self.cache[bib_chunk.query] = bib_chunk
         self.chunks_in_cache_count += 1
-        logging.debug('Cache count: {}'.format(self.chunks_in_cache_count))
+        #logging.debug('Cache count: {}'.format(self.chunks_in_cache_count))
 
     def flush_cache(self):
         if self.chunks_in_cache_count == self.max_chunks:
