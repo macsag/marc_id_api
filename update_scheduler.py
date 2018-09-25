@@ -1,9 +1,10 @@
 import schedule
 import requests
 import time
+from base_url_config import BASE_URL
 
 def do_auth_update():
-    requests.get('http://127.0.0.1:5000/update_authority_index')
+    requests.get('http://{}/update/authorities'.format(BASE_URL))
 
 
 # set update scheduler

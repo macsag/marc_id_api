@@ -30,11 +30,11 @@ def explain(self, request):
 @App.path(model=MarcRecordWrapper, path='/get_single_bib_record/{marc_record_number}')
 def get_record(marc_record_number):
     if local_bib_index[marc_record_number]:
-        return MarcRecordWrapper(read_marc_from_binary(local_bib_index[marc_record_number]), auth_index)
+        return MarcRecordWrapper(read_marc_from_binary(local_bib_index[marc_record_number]), local_auth_index)
     else:
         r = requests.get('http://data.bn.org.pl/api/bibs.marc?id={}'.format(marc_record_number)).content
         r = read_marc_from_binary(r)
-        r = MarcRecordWrapper(r, auth_index)
+        r = MarcRecordWrapper(r, local_auth_index)
         return r
 
 
@@ -59,7 +59,7 @@ def get_bib_records(query_for_data_bn):
         chunk_to_return = local_next_page_cache.cache[query_for_data_bn]
         return chunk_to_return
     else:
-        chunk_to_return = BibliographicRecordsChunk(query_for_data_bn, auth_index, local_bib_index)
+        chunk_to_return = BibliographicRecordsChunk(query_for_data_bn, local_auth_index, local_bib_index)
         local_next_page_cache.add_to_cache(chunk_to_return)
         local_next_page_cache.flush_cache()
         return chunk_to_return
@@ -74,7 +74,7 @@ def render_bib_records(self, request):
 
 @App.path(model=Authority, path='/get_authority/{id_or_name}')
 def get_authority(id_or_name):
-    return Authority(id_or_name, auth_index)
+    return Authority(id_or_name, local_auth_index)
 
 @App.view(model=Authority)
 def authority_info(self, request):
@@ -98,22 +98,22 @@ def update_index(index):
     if updater_status.update_in_progress:
         return updater
     else:
-        if index == 'authority':
-            updater.update_authority_index(auth_index, updater_status)
+        if index == 'authorities':
+            updater.update_authority_index(local_auth_index, updater_status)
         if index == 'bibs':
-            updater.update_bibliographic_index(auth_index, updater_status)
+            updater.update_bibliographic_index(local_bib_index, updater_status)
 
 @App.json(model=Updater)
 def render_after_update(self, request):
     return {"update_in_progress": updater_status.update_in_progress, "last_bib_update": updater_status.last_bib_update.isoformat(timespec='seconds') + 'Z', "last_auth_update": updater_status.last_auth_update.isoformat(timespec='seconds') + 'Z'}
 
 # set index source files
-bib_marc = 'bibs-e_book.marc'
-auth_marc = 'authorities-all.marc'
+bib_marc = 'bibs-test.mrc'
+auth_marc = 'authorities-test.mrc'
 
 # create indexes
 local_bib_index = create_local_bib_index(bib_marc)
-auth_index = create_authority_index(auth_marc)
+local_auth_index = create_authority_index(auth_marc)
 
 # create updater and updater_status
 updater = Updater()

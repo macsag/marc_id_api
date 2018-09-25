@@ -1,44 +1,14 @@
-from pymarc import *
-import logging
 from tqdm import tqdm
 import requests
-from permissive import PermissiveMARCReader
 from datetime import datetime
 from datetime import timedelta
+from pymarc import *
+from permissive import PermissiveMARCReader
+from indexer_config import FIELDS_TO_CHECK, AUTHORITY_INDEX_FIELDS
+from base_url_config import BASE_URL
 
 
-# constants for index configuration
-
-# bibliographic record fields to check for authority identifiers
-# tuples (string (marc field), list of strings (marc subfields}]
-
-FIELDS_TO_CHECK = [('100', ['a', 'b', 'c', 'd']),
-                   ('110', ['a', 'b', 'c', 'd', 'n']),
-                   ('111', ['a', 'b', 'c', 'd', 'n']),
-                   ('130', ['a', 'b', 'c', 'd', 'n', 'p']),
-                   ('380', ['a', 'b', 'c', 'd', 'n', 'p']),
-                   ('388', ['a']),
-                   ('385', ['a']),
-                   ('386', ['a']),
-                   ('600', ['a', 'b', 'c', 'd', 'n', 'p', 't', 'x', 'y', 'z']),
-                   ('610', ['a', 'b', 'c', 'd', 'n', 'p', 't', 'x', 'y', 'z']),
-                   ('611', ['a', 'b', 'c', 'd', 'n', 'p', 't', 'x', 'y', 'z']),
-                   ('630', ['a', 'b', 'c', 'd', 'n', 'p', 't', 'x', 'y', 'z']),
-                   ('648', ['a']),
-                   ('650', ['a', 'b', 'c', 'd', 'x', 'y', 'z']),
-                   ('651', ['a', 'b', 'c', 'd', 'x', 'y', 'z']),
-                   ('655', ['a', 'b', 'c', 'd', 'x', 'y', 'z']),
-                   ('658', ['a']),
-                   ('700', ['a', 'b', 'c', 'd', 'n', 'p', 't', 'x', 'y', 'z']),
-                   ('710', ['a', 'b', 'c', 'd', 'n', 'p', 't', 'x', 'y', 'z']),
-                   ('711', ['a', 'b', 'c', 'd', 'n', 'p', 't', 'x', 'y', 'z']),
-                   ('730', ['a', 'b', 'c', 'd', 'n', 'p', 't', 'x', 'y', 'z']),
-                   ('830', ['a', 'b', 'c', 'd', 'n', 'p', 't', 'x', 'y', 'z'])]
-
-# authority record fields to index
-
-AUTHORITY_INDEX_FIELDS = ['100', '110', '111', '130', '148', '150', '151', '155']
-
+# indexers for authorities and bibliographic records
 
 def create_authority_index(data):
     """
@@ -48,7 +18,7 @@ def create_authority_index(data):
     and
     heading (string): record ids (list).
 
-    Available requests by authority id and authority heading.
+    Available requests: by authority id and authority heading.
     """
     authority_index = {}
 
@@ -57,7 +27,7 @@ def create_authority_index(data):
         for rcd in tqdm(rdr):
             try:
                 record_id = rcd.get_fields('001')[0].value()
-                #logging.debug('Indeksuję: {}'.format(record_id))
+                logging.debug('Indeksuję: {}'.format(record_id))
             except IndexError:
                 continue
             for fld in AUTHORITY_INDEX_FIELDS:
@@ -65,11 +35,17 @@ def create_authority_index(data):
                     fld_value = get_rid_of_punctuation(rcd.get_fields(fld)[0].value())
                     authority_index.setdefault(fld_value, []).append(record_id)
                     authority_index[record_id] = fld_value
-                    #logging.debug('Indexing: {} - {}'.format(fld_value, authority_index[fld_value]))
 
     return authority_index
 
 def create_local_bib_index(data):
+    """
+    Creates bibliographic records index in form of dictionary.
+    Structure:
+    record id (string): record (bytes) [thanks to bytes ('ISO transmission format') all bibs can be easily loaded to memory]
+
+    Available requests: by bibliographic record id.
+    """
     l_b_index = {}
 
     with open(data, 'rb') as fp:
@@ -77,23 +53,45 @@ def create_local_bib_index(data):
         for rcd in tqdm(rdr):
             try:
                 record_id = rcd.get_fields('001')[0].value()
-                #logging.debug('Indeksuję: {}'.format(record_id))
             except IndexError:
                 continue
             l_b_index[record_id] = rcd.as_marc()
 
     return l_b_index
 
+# helper functions
 
 def get_rid_of_punctuation(string):
     return ''.join(char.replace(',', '').replace('.', '') for char in string)
 
 
 def read_marc_from_binary(data_chunk):
-    marc_rdr = MARCReader(data_chunk, to_unicode=True, force_utf8=True, utf8_handling='ignore')
+    marc_rdr = PermissiveMARCReader(data_chunk, to_unicode=True, force_utf8=True, utf8_handling='ignore')
     for rcd in marc_rdr:
         return rcd
 
+def calculate_check_digit(record_id):
+    char_sum = 0
+    i = 2
+    for character in record_id[::-1]:
+        char_sum += int(character) * i
+        i += 1
+    remainder = char_sum % 11
+    check_digit = str(remainder) if remainder != 10 else 'x'
+    return record_id + check_digit
+
+def get_marc_data_from_data_bn(records_ids):
+    records_ids_length = len(records_ids)
+
+    if records_ids_length <= 100:
+        ids_for_query = '%2C'.join(record_id for record_id in records_ids)
+        query = 'http://data.bn.org.pl/api/authorities.marc?id={}&limit=100'.format(ids_for_query)
+
+        result = bytearray(requests.get(query).content)
+        logging.debug("Pobieram: {}".format(query))
+        return result
+
+# api core function
 
 def process_record(marc_record, auth_index):
     """
@@ -117,15 +115,7 @@ def process_record(marc_record, auth_index):
 
     return marc_record
 
-def calculate_check_digit(record_id):
-    char_sum = 0
-    i = 2
-    for character in record_id[::-1]:
-        char_sum += int(character) * i
-        i += 1
-    remainder = char_sum % 11
-    check_digit = str(remainder) if remainder != 10 else 'x'
-    return record_id + check_digit
+# models for API
 
 class UpdaterStatus(object):
     def __init__(self, date_now):
@@ -177,7 +167,7 @@ class Updater(object):
     def update_authority_index(self, authority_index, updater_status):
         # set update status
         updater_status.update_in_progress = True
-        logging.debug("Status: {}".format(updater_status.update_in_progress))
+        logging.info("Status indeksera wzorców: {}".format(updater_status.update_in_progress))
 
         # create dates for queries
         date_from = updater_status.last_auth_update - timedelta(days=3)
@@ -190,13 +180,13 @@ class Updater(object):
                                                                         date_from_in_iso_with_z, date_to_in_iso_with_z)
 
         deleted_records_ids = self.get_records_ids_from_data_bn_for_authority_index_update(deleted_query)
-        logging.debug("Rekordów usuniętych: {}".format(len(deleted_records_ids)))
+        logging.info("Rekordów usuniętych: {}".format(len(deleted_records_ids)))
 
         # get updated authority records ids from data.bn.org.pl
         updated_query = 'http://data.bn.org.pl/api/authorities.json?updatedDate={}%2C{}&limit=100'.format(
                                                             date_from_in_iso_with_z, date_to_in_iso_with_z)
         updated_records_ids = self.get_records_ids_from_data_bn_for_authority_index_update(updated_query)
-        logging.debug("Rekordów zmodyfikowanych: {}".format(len(updated_records_ids)))
+        logging.info("Rekordów zmodyfikowanych: {}".format(len(updated_records_ids)))
 
         # delete authority records from authority index by record id (deletes entries by record id and heading)
         self.remove_deleted_records_from_authority_index(deleted_records_ids, authority_index)
@@ -207,7 +197,7 @@ class Updater(object):
         # set update status
         updater_status.update_in_progress = False
         updater_status.last_auth_update = date_to
-        logging.debug("Status: {}".format(updater_status.update_in_progress))
+        logging.info("Status indeksera wzorców: {}".format(updater_status.update_in_progress))
 
     @staticmethod
     def update_updated_records_in_authority_index(updated_records_ids, authority_index):
@@ -326,18 +316,6 @@ class Updater(object):
         return records_ids
 
 
-def get_marc_data_from_data_bn(records_ids):
-    records_ids_length = len(records_ids)
-
-    if records_ids_length <= 100:
-        ids_for_query = '%2C'.join(record_id for record_id in records_ids)
-        query = 'http://data.bn.org.pl/api/authorities.marc?id={}&limit=100'.format(ids_for_query)
-
-        result = bytearray(requests.get(query).content)
-        logging.debug("Pobieram: {}".format(query))
-        return result
-
-
 class BibliographicRecordsChunk(object):
     def __init__(self, query, auth_index, bib_index):
         self.query = query
@@ -358,7 +336,6 @@ class BibliographicRecordsChunk(object):
             processed_query = self.query
 
         r = requests.get(processed_query)
-        #logging.debug("Pobieram: {}".format(processed_query))
         json_chunk = r.json()
         return json_chunk
 
@@ -368,7 +345,6 @@ class BibliographicRecordsChunk(object):
         for rcd in self.json_response['bibs']:
             record_id = rcd['marc']['fields'][0]['001']
             records_ids.append(record_id)
-            #logging.debug("Dołączam rekord nr: {}".format(record_id))
 
         return records_ids
 
@@ -376,10 +352,10 @@ class BibliographicRecordsChunk(object):
         return self.json_response['nextPage']
 
     def create_next_page_for_user(self):
-        base_url = 'http://127.0.0.1:5000/get_bibs/'
+        base = BASE_URL
         query = self.next_page_for_data_bn[36:]
 
-        next_page_for_user = base_url + query
+        next_page_for_user = base + '/get_bibs/' + query
 
         return next_page_for_user
 
@@ -396,7 +372,6 @@ class BibliographicRecordsChunk(object):
             query = 'http://data.bn.org.pl/api/bibs.marc?id={}&amp;limit=100'.format(ids_for_query)
 
             marc_data_chunk = bytearray(requests.get(query).content)
-            #logging.debug("Pobieram: {}".format(query))
 
             return marc_data_chunk
 
@@ -414,7 +389,7 @@ class BibliographicRecordsChunk(object):
     def read_marc_from_binary_in_chunks(self):
         marc_objects_chunk = []
 
-        marc_rdr = MARCReader(self.marc_chunk, to_unicode=True, force_utf8=True, utf8_handling='ignore')
+        marc_rdr = PermissiveMARCReader(self.marc_chunk, to_unicode=True, force_utf8=True, utf8_handling='ignore')
         for rcd in marc_rdr:
             marc_objects_chunk.append(rcd)
 
@@ -431,10 +406,8 @@ class BibliographicRecordsChunk(object):
             xmlized_rcd = marcxml.record_to_xml(rcd, namespace=True)
             wrapped_rcd = '<bib>' + str(xmlized_rcd)[2:-1] + '</bib>'
             wrapped_processed_records_in_xml.append(wrapped_rcd)
-            print(wrapped_rcd)
 
         joined_to_str = ''.join(rcd for rcd in wrapped_processed_records_in_xml)
-        print(joined_to_str)
 
         out_xml = '<resp><nextPage>{}</nextPage><bibs>{}</bibs></resp>'.format(self.next_page_for_user, joined_to_str)
 

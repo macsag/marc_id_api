@@ -28,10 +28,10 @@ class PermissiveMARCReader(pymarc.MARCReader):
         chunk = first5 + chunk
         try:
             record = pymarc.Record(chunk,
-                                   to_unicode=self.to_unicode,
-                                   force_utf8=self.force_utf8,
-                                   hide_utf8_warnings=self.hide_utf8_warnings,
-                                   utf8_handling=self.utf8_handling)
+                               to_unicode=self.to_unicode,
+                               force_utf8=self.force_utf8,
+                               hide_utf8_warnings=self.hide_utf8_warnings,
+                               utf8_handling=self.utf8_handling)
             self.count += 1
             return record
         except (RecordLeaderInvalid, BaseAddressNotFound, BaseAddressInvalid, RecordDirectoryInvalid, NoFieldsFound):
