@@ -107,9 +107,10 @@ def update_index(index):
 def render_after_update(self, request):
     return {"update_in_progress": updater_status.update_in_progress, "last_bib_update": updater_status.last_bib_update.isoformat(timespec='seconds') + 'Z', "last_auth_update": updater_status.last_auth_update.isoformat(timespec='seconds') + 'Z'}
 
+
 # set index source files
-bib_marc = 'bibs-test.mrc'
-auth_marc = 'authorities-test.mrc'
+bib_marc = 'bibs-all.marc'
+auth_marc = 'authorities-all.mrc'
 
 # create indexes
 local_bib_index = create_local_bib_index(bib_marc)
