@@ -80,12 +80,23 @@ def calculate_check_digit(record_id):
     check_digit = str(remainder) if remainder != 10 else 'x'
     return record_id + check_digit
 
-def get_marc_data_from_data_bn(records_ids):
+def get_marc_authority_data_from_data_bn(records_ids):
     records_ids_length = len(records_ids)
 
     if records_ids_length <= 100:
         ids_for_query = '%2C'.join(record_id for record_id in records_ids)
         query = 'http://data.bn.org.pl/api/authorities.marc?id={}&limit=100'.format(ids_for_query)
+
+        result = bytearray(requests.get(query).content)
+        #logging.debug("Pobieram: {}".format(query))
+        return result
+
+def get_marc_bibliographic_data_from_data_bn(records_ids):
+    records_ids_length = len(records_ids)
+
+    if records_ids_length <= 100:
+        ids_for_query = '%2C'.join(record_id for record_id in records_ids)
+        query = 'http://data.bn.org.pl/api/bibs.marc?id={}&limit=100'.format(ids_for_query)
 
         result = bytearray(requests.get(query).content)
         #logging.debug("Pobieram: {}".format(query))
@@ -170,7 +181,7 @@ class Updater(object):
         logging.info("Status indeksera wzorców: {}".format(updater_status.update_in_progress))
 
         # create dates for queries
-        date_from = updater_status.last_auth_update - timedelta(days=3)
+        date_from = updater_status.last_auth_update - timedelta(days=2)
         date_from_in_iso_with_z = date_from.isoformat(timespec='seconds') + 'Z'
         date_to = datetime.utcnow()
         date_to_in_iso_with_z = date_to.isoformat(timespec='seconds') + 'Z'
@@ -205,14 +216,13 @@ class Updater(object):
         chunks = [updated_records_ids[i:i + chunk_max_size] for i in range(0, len(updated_records_ids), chunk_max_size)]
 
         for chunk in chunks:
-            data = get_marc_data_from_data_bn(chunk)
+            data = get_marc_authority_data_from_data_bn(chunk)
 
             rdr = PermissiveMARCReader(data, to_unicode=True, force_utf8=True, utf8_handling='ignore')
 
             for rcd in rdr:
                 try:
                     record_id = rcd.get_fields('001')[0].value()
-                    print(record_id)
                 except IndexError:
                     continue
                 for fld in AUTHORITY_INDEX_FIELDS:
@@ -244,14 +254,13 @@ class Updater(object):
         chunks = [updated_records_ids[i:i + chunk_max_size] for i in range(0, len(updated_records_ids), chunk_max_size)]
 
         for chunk in chunks:
-            data = get_marc_data_from_data_bn(chunk)
+            data = get_marc_bibliographic_data_from_data_bn(chunk)
 
             rdr = PermissiveMARCReader(data, to_unicode=True, force_utf8=True, utf8_handling='ignore')
 
             for rcd in rdr:
                 try:
                     record_id = rcd.get_fields('001')[0].value()
-                    print(record_id)
                 except IndexError:
                     continue
                 bib_index[record_id] = rcd.as_marc()
@@ -353,9 +362,9 @@ class BibliographicRecordsChunk(object):
 
     def create_next_page_for_user(self):
         base = BASE_URL
-        query = self.next_page_for_data_bn[36:]
+        query = self.next_page_for_data_bn.split('json?')[1]
 
-        next_page_for_user = base + '/get_bibs/' + query
+        next_page_for_user = 'http://' + base + '/get_bibs/' + query
 
         return next_page_for_user
 
@@ -459,3 +468,4 @@ class Authority(object):
             return self.value_from_dict
         else:
             return self.query
+
