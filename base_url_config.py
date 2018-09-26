@@ -1,1 +1,1 @@
-BASE_URL = 'localhost:80'
+BASE_URL = '127.0.0.1:5000'
