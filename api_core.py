@@ -27,7 +27,7 @@ def create_authority_index(data):
         for rcd in tqdm(rdr):
             try:
                 record_id = rcd.get_fields('001')[0].value()
-                #logging.debug('Indeksuję: {}'.format(record_id))
+                logging.debug('Indeksuję: {}'.format(record_id))
             except IndexError:
                 continue
             for fld in AUTHORITY_INDEX_FIELDS:
@@ -53,6 +53,7 @@ def create_local_bib_index(data):
         for rcd in tqdm(rdr):
             try:
                 record_id = rcd.get_fields('001')[0].value()
+                logging.debug('Indeksuję: {}'.format(record_id))
             except IndexError:
                 continue
             l_b_index[record_id] = rcd.as_marc()
@@ -361,10 +362,16 @@ class BibliographicRecordsChunk(object):
         return self.json_response['nextPage']
 
     def create_next_page_for_user(self):
-        base = BASE_URL
-        query = self.next_page_for_data_bn.split('json?')[1]
+        if 'localhost' in BASE_URL:
+            base = BASE_URL
+        else:
+            base = 'khw.data.bn.org.pl'
+        if self.next_page_for_data_bn:
+            query = self.next_page_for_data_bn.split('json?')[1]
 
-        next_page_for_user = 'http://' + base + '/get_bibs/' + query
+            next_page_for_user = 'http://' + base + '/get_bibs/' + query
+        else:
+            next_page_for_user = ''
 
         return next_page_for_user
 

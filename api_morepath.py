@@ -13,10 +13,16 @@ class App(morepath.App):
 @App.path(path='')
 class Root(object):
     def __init__(self):
-        self.message = 'API wzbogacające rekordy bibliograficzne o numery rekordów wzorcowych w podpolu |0.'
+        self.message = '<h1>API wzbogacające rekordy bibliograficzne o numery rekordów wzorcowych w podpolu |0.</h1>' \
+                       '<h2>Dostępne metody:</h2>' \
+                       '<h3>/get_bibs/{zapytanie do data.bn.org.pl}</h3>' \
+                       '<p>Metoda zwraca żądane rekordy bibliograficzne wzbogacone o identyfikatory rekordów wzorcowych; ' \
+                       'w zapytaniu należy pominąć prefix rodzaju rekordu i formatu, czyli "bibs.xml?".</p>' \
+                       '<p>Przykładowe poprawne zapytanie: ' \
+                       '/get_bibs/createdDate=2018-11-13T10%3A00%3A00Z%2C2018-11-13T11%3A00%3A00Z&limit=100&sinceId=6099657</p>'
 
 
-@App.view(model=Root)
+@App.html(model=Root)
 def explain(self, request):
     return self.message
 
@@ -109,8 +115,8 @@ def render_after_update(self, request):
 
 
 # set index source files
-bib_marc = 'bibs-all.marc'
-auth_marc = 'authorities-all.mrc'
+bib_marc = 'bibs-test.mrc'
+auth_marc = 'authorities-test.mrc'
 
 # create indexes
 local_bib_index = create_local_bib_index(bib_marc)
