@@ -10,8 +10,8 @@ def do_bib_update():
     requests.get('http://{}/update/bibs'.format(BASE_URL))
 
 # set update scheduler
-schedule.every().day.at("09:15").do(do_auth_update)
-schedule.every().day.at("12:45").do(do_auth_update)
+schedule.every().day.at("10:15").do(do_auth_update)
+schedule.every().day.at("10:30").do(do_bib_update)
 
 while True:
     schedule.run_pending()
