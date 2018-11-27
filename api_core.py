@@ -7,7 +7,6 @@ from permissive import PermissiveMARCReader
 from indexer_config import FIELDS_TO_CHECK, AUTHORITY_INDEX_FIELDS
 from base_url_config import BASE_URL
 
-
 # indexers for authorities and bibliographic records
 
 def create_authority_index(data):
@@ -146,7 +145,7 @@ class Updater(object):
         logging.info("Status: {}".format(updater_status.update_in_progress))
 
         # create dates for queries
-        date_from = updater_status.last_bib_update - timedelta(days=2)
+        date_from = updater_status.last_bib_update - timedelta(days=9)
         date_from_in_iso_with_z = date_from.isoformat(timespec='seconds') + 'Z'
         date_to = datetime.utcnow()
         date_to_in_iso_with_z = date_to.isoformat(timespec='seconds') + 'Z'
@@ -182,7 +181,7 @@ class Updater(object):
         logging.info("Status indeksera wzorców: {}".format(updater_status.update_in_progress))
 
         # create dates for queries
-        date_from = updater_status.last_auth_update - timedelta(days=2)
+        date_from = updater_status.last_auth_update - timedelta(days=9)
         date_from_in_iso_with_z = date_from.isoformat(timespec='seconds') + 'Z'
         date_to = datetime.utcnow()
         date_to_in_iso_with_z = date_to.isoformat(timespec='seconds') + 'Z'
@@ -224,20 +223,25 @@ class Updater(object):
             for rcd in rdr:
                 try:
                     record_id = rcd.get_fields('001')[0].value()
+                    logging.debug(record_id)
                 except IndexError:
                     continue
                 for fld in AUTHORITY_INDEX_FIELDS:
                     if fld in rcd:
                         heading = get_rid_of_punctuation(rcd.get_fields(fld)[0].value())
+                        logging.debug(heading)
                         if record_id in authority_index:
                             old_heading = authority_index[record_id]
+                            logging.debug('Old heading from {} {}'.format(record_id, old_heading))
                             if old_heading == heading:
                                 break
                             else:
                                 authority_index[record_id] = heading
                                 old_heading_ids = authority_index[old_heading]
+                                logging.debug(old_heading_ids)
                                 if len(old_heading_ids) > 1:
-                                    authority_index[old_heading] = old_heading_ids.remove(record_id)
+                                    old_heading_ids.remove(record_id)
+                                    logging.debug('Old heading ids after delete {}'.format(authority_index[old_heading]))
                                     authority_index.setdefault(heading, []).append(record_id)
                                     break
                                 else:
@@ -273,7 +277,7 @@ class Updater(object):
                 heading = authority_index.pop(record_id)
                 heading_ids = authority_index[heading]
                 if len(heading_ids) > 1:
-                    authority_index[heading] = heading_ids.remove(record_id)
+                    heading_ids.remove(record_id)
                 else:
                     del authority_index[heading]
 
