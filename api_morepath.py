@@ -3,28 +3,25 @@ from api_core import *
 
 
 # initialise app
-
 class App(morepath.App):
     pass
 
-
-# main page with docs
-
+# serve docs as root
 @App.path(path='')
 class Root(object):
     def __init__(self):
-        self.message = '<h1>API wzbogacające rekordy bibliograficzne o numery rekordów wzorcowych w podpolu |0.</h1>' \
-                       '<h2>Dostępne metody:</h2>' \
-                       '<h3>/get_bibs/{zapytanie do data.bn.org.pl}</h3>' \
-                       '<p>Metoda zwraca żądane rekordy bibliograficzne wzbogacone o identyfikatory rekordów wzorcowych; ' \
-                       'w zapytaniu należy pominąć prefix rodzaju rekordu i formatu, czyli "bibs.xml?".</p>' \
-                       '<p>Przykładowe poprawne zapytanie: ' \
-                       '/get_bibs/createdDate=2018-11-13T10%3A00%3A00Z%2C2018-11-13T11%3A00%3A00Z&limit=100&sinceId=6099657</p>'
+        pass
+
+    @staticmethod
+    def open_docs_from_file():
+        with open('docs.html', 'r', encoding='utf8') as fp:
+            docs = fp.read()
+        return docs
 
 
 @App.html(model=Root)
-def explain(self, request):
-    return self.message
+def get_static_html(self, request):
+    return self.open_docs_from_file()
 
 
 # single bib record
@@ -51,7 +48,7 @@ def render_json(self, request):
 
 @App.view(model=MarcRecordWrapper, name='xml')
 def render_xml(self, request):
-    return morepath.Response(text=self.marc_record_processed_ax_xml, content_type='application/xml')
+    return morepath.Response(body=self.marc_record_processed_ax_xml, content_type='application/xml')
 
 
 # bib records chunk
@@ -115,8 +112,8 @@ def render_after_update(self, request):
 
 
 # set index source files
-bib_marc = 'bibs-test.mrc'
-auth_marc = 'authorities-test.mrc'
+bib_marc = 'bibs-all.marc'
+auth_marc = 'authorities-all.marc'
 
 # create indexes
 local_bib_index = create_local_bib_index(bib_marc)
@@ -128,3 +125,9 @@ updater_status = UpdaterStatus(datetime.utcnow())
 
 # set max bibs cache size
 local_next_page_cache = BibliographicRecordsChunksCache(20)
+
+if __name__ == '__main__':
+    logging.root.addHandler(logging.StreamHandler(sys.stdout))
+    logging.root.setLevel(level=logging.DEBUG)
+
+    morepath.run(App())
