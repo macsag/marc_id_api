@@ -145,7 +145,7 @@ class Updater(object):
         logging.info("Status: {}".format(updater_status.update_in_progress))
 
         # create dates for queries
-        date_from = updater_status.last_bib_update - timedelta(days=2)
+        date_from = updater_status.last_bib_update - timedelta(days=3)
         date_from_in_iso_with_z = date_from.isoformat(timespec='seconds') + 'Z'
         date_to = datetime.utcnow()
         date_to_in_iso_with_z = date_to.isoformat(timespec='seconds') + 'Z'
@@ -181,7 +181,7 @@ class Updater(object):
         logging.info("Status indeksera wzorców: {}".format(updater_status.update_in_progress))
 
         # create dates for queries
-        date_from = updater_status.last_auth_update - timedelta(days=2)
+        date_from = updater_status.last_auth_update - timedelta(days=3)
         date_from_in_iso_with_z = date_from.isoformat(timespec='seconds') + 'Z'
         date_to = datetime.utcnow()
         date_to_in_iso_with_z = date_to.isoformat(timespec='seconds') + 'Z'
@@ -229,7 +229,7 @@ class Updater(object):
                 for fld in AUTHORITY_INDEX_FIELDS:
                     if fld in rcd:
                         heading = get_rid_of_punctuation(rcd.get_fields(fld)[0].value())
-                        logging.debug(heading)
+                        logging.debug('New heading {}'.format(heading))
                         if record_id in authority_index:
                             old_heading = authority_index[record_id]
                             logging.debug('Old heading from {} {}'.format(record_id, old_heading))
