@@ -145,7 +145,7 @@ class Updater(object):
         logging.info("Status: {}".format(updater_status.update_in_progress))
 
         # create dates for queries
-        date_from = updater_status.last_bib_update - timedelta(days=9)
+        date_from = updater_status.last_bib_update - timedelta(days=2)
         date_from_in_iso_with_z = date_from.isoformat(timespec='seconds') + 'Z'
         date_to = datetime.utcnow()
         date_to_in_iso_with_z = date_to.isoformat(timespec='seconds') + 'Z'
@@ -181,7 +181,7 @@ class Updater(object):
         logging.info("Status indeksera wzorców: {}".format(updater_status.update_in_progress))
 
         # create dates for queries
-        date_from = updater_status.last_auth_update - timedelta(days=9)
+        date_from = updater_status.last_auth_update - timedelta(days=2)
         date_from_in_iso_with_z = date_from.isoformat(timespec='seconds') + 'Z'
         date_to = datetime.utcnow()
         date_to_in_iso_with_z = date_to.isoformat(timespec='seconds') + 'Z'
